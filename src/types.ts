@@ -104,7 +104,7 @@ export interface EventClock {
   stream_source: string;
 }
 
-export type EventCategory = 'MARKET' | 'ORDER_FLOW' | 'SENTIMENT' | 'SIGNAL' | 'SYSTEM';
+export type EventCategory = 'MARKET' | 'ORDER_FLOW' | 'SENTIMENT' | 'SIGNAL' | 'SYSTEM' | 'ORCHESTRATION' | 'AUDIT';
 
 export interface IntelligenceEvent {
   readonly id: string;
@@ -114,4 +114,33 @@ export interface IntelligenceEvent {
   readonly data: Readonly<any>;
   readonly causality_chain: readonly string[];
   readonly metadata?: Readonly<Record<string, any>>;
+}
+
+export interface LegacyEvent {
+  id?: string;
+  type: string;
+  timestamp?: string;
+  payload: unknown;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProductionEvent<T = any> {
+  id: string;
+  type: string;
+  source: string;
+  timestamp: string;
+  correlationId: string;
+  causationId?: string;
+  sequence: number;
+  eventClock: number;
+  schemaVersion: number;
+  partitionKey?: string;
+  payload: T;
+  metadata: {
+    migrated: boolean;
+    legacySource: string;
+    originalId?: string;
+    [key: string]: any;
+  };
+  signature?: string;
 }

@@ -15,7 +15,8 @@ import {
   Cpu,
   Layers,
   RefreshCw,
-  Terminal
+  Terminal,
+  Database
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { 
@@ -30,9 +31,11 @@ import {
   ComposedChart,
   Cell
 } from 'recharts';
-import { IntelligenceEvent } from '../types';
+import { IntelligenceEvent, ProductionEvent } from '../types';
 import { CausalityGraph } from './CausalityGraph';
+import { MigrationMonitor } from './MigrationMonitor';
 import { createEvent } from '../lib/intelligence';
+import { migrateAlphaFlow, migrateLedger } from '../migration/migrate';
 
 const CandlestickChart = ({ data }: { data: any[] }) => {
   return (
@@ -108,7 +111,30 @@ export default function CommandCenter() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<IntelligenceEvent[]>([]);
-  const [activeTab, setActiveTab] = useState<'visual' | 'kernel'>('visual');
+  const [migratedEvents, setMigratedEvents] = useState<ProductionEvent[]>([]);
+  const [activeTab, setActiveTab] = useState<'visual' | 'kernel' | 'migration'>('visual');
+
+  const simulateMigration = useCallback(async () => {
+    // Simulate legacy Alpha-Flow events
+    const legacyAlphaEvents = [
+      { id: 'af-1', type: 'WORKFLOW_STARTED', workflowId: 'wf-992', step: 'INITIAL_FETCH', status: 'COMPLETED', data: { latency: 45 } },
+      { id: 'af-2', type: 'STEP_EXECUTED', workflowId: 'wf-992', step: 'TRANSFORM_PAYLOAD', status: 'COMPLETED', data: { success: true } }
+    ];
+    
+    // Simulate legacy Ledger entries
+    const legacyLedgerEntries = [
+      { id: 'ledger-501', transactionId: 'tx-881', accountId: 'acc-alpha', debit: 0, credit: 1500, balance: 45000, createdAt: new Date().toISOString() }
+    ];
+
+    const afNorm = await migrateAlphaFlow(legacyAlphaEvents);
+    const ledgerNorm = await migrateLedger(legacyLedgerEntries);
+
+    setMigratedEvents(prev => {
+      const next = [...prev, ...afNorm, ...ledgerNorm];
+      if (next.length > 30) return next.slice(next.length - 30);
+      return next;
+    });
+  }, []);
 
   const addEvent = useCallback((event: IntelligenceEvent) => {
     setEvents(prev => {
@@ -151,6 +177,9 @@ export default function CommandCenter() {
           [marketEvent.id]
         );
         addEvent(signalEvent);
+        
+        // Trigger simulation of legacy system synchronization
+        simulateMigration();
       }
 
     } catch (error) {
@@ -221,6 +250,16 @@ export default function CommandCenter() {
           >
             <Terminal className="w-3 h-3" />
             KERNEL
+          </button>
+          <button 
+            onClick={() => setActiveTab('migration')}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-2",
+              activeTab === 'migration' ? "bg-blue-500 text-black border-transparent" : "text-white/40 hover:text-white"
+            )}
+          >
+            <Database className="w-3 h-3" />
+            MIGRATION
           </button>
         </div>
 
@@ -345,14 +384,26 @@ export default function CommandCenter() {
         <div className="col-span-12 lg:col-span-4 row-span-3 glass-panel p-5 flex flex-col min-h-0">
           <div className="flex items-center justify-between">
             <PanelHeader 
-              icon={activeTab === 'visual' ? <BarChart3 className="w-4 h-4" /> : <Terminal className="w-4 h-4 text-emerald-500" />} 
-              title={activeTab === 'visual' ? "Market Price Action" : "Canonical Event Kernel"} 
-              subtitle={activeTab === 'visual' ? "Live Candlestick Feed" : "Replay System Logs"} 
+              icon={
+                activeTab === 'visual' ? <BarChart3 className="w-4 h-4" /> : 
+                activeTab === 'kernel' ? <Terminal className="w-4 h-4 text-emerald-500" /> :
+                <Database className="w-4 h-4 text-blue-500" />
+              } 
+              title={
+                activeTab === 'visual' ? "Market Price Action" : 
+                activeTab === 'kernel' ? "Canonical Event Kernel" :
+                "Legacy Migration Engine"
+              } 
+              subtitle={
+                activeTab === 'visual' ? "Live Candlestick Feed" : 
+                activeTab === 'kernel' ? "Replay System Logs" :
+                "Alpha-Flow & Ledger Normalizer"
+              } 
             />
           </div>
           
           <div className="flex-1 mt-4 relative">
-            {activeTab === 'visual' ? (
+            {activeTab === 'visual' && (
               <>
                 {history.length > 0 ? (
                   <CandlestickChart data={history} />
@@ -366,8 +417,12 @@ export default function CommandCenter() {
                   <span className="text-[9px] font-bold text-white/60 uppercase">NVDA // 1M</span>
                 </div>
               </>
-            ) : (
+            )}
+            {activeTab === 'kernel' && (
               <CausalityGraph events={events} />
+            )}
+            {activeTab === 'migration' && (
+              <MigrationMonitor migratedEvents={migratedEvents} />
             )}
           </div>
         </div>
