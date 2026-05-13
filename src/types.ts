@@ -88,3 +88,30 @@ export type PortfolioSummary = {
   dailyChangePercent: number;
   buyingPower: number;
 };
+
+export interface EventClock {
+  /** External system timestamp (e.g. exchange time) */
+  source_time: number;
+  /** When the adapter received it */
+  ingest_time: number;
+  /** Canonical kernel ordering timestamp (authoritative) */
+  kernel_time: number;
+  /** Lamport/logical ordering for sub-millisecond precision */
+  logical_time: number;
+  /** Unique sequence identifier for replay integrity */
+  sequence_id: string;
+  /** Identifier of the origin stream */
+  stream_source: string;
+}
+
+export type EventCategory = 'MARKET' | 'ORDER_FLOW' | 'SENTIMENT' | 'SIGNAL' | 'SYSTEM';
+
+export interface IntelligenceEvent {
+  readonly id: string;
+  readonly type: string;
+  readonly category: EventCategory;
+  readonly clock: Readonly<EventClock>;
+  readonly data: Readonly<any>;
+  readonly causality_chain: readonly string[];
+  readonly metadata?: Readonly<Record<string, any>>;
+}

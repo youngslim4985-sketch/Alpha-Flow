@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { 
   Activity, 
@@ -14,7 +14,8 @@ import {
   Globe,
   Cpu,
   Layers,
-  RefreshCw
+  RefreshCw,
+  Terminal
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { 
@@ -29,6 +30,9 @@ import {
   ComposedChart,
   Cell
 } from 'recharts';
+import { IntelligenceEvent } from '../types';
+import { CausalityGraph } from './CausalityGraph';
+import { createEvent } from '../lib/intelligence';
 
 const CandlestickChart = ({ data }: { data: any[] }) => {
   return (
@@ -103,6 +107,16 @@ export default function CommandCenter() {
   const [alphaStatus, setAlphaStatus] = useState<AlphaStatus | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<IntelligenceEvent[]>([]);
+  const [activeTab, setActiveTab] = useState<'visual' | 'kernel'>('visual');
+
+  const addEvent = useCallback((event: IntelligenceEvent) => {
+    setEvents(prev => {
+      const next = [...prev, event];
+      if (next.length > 50) return next.slice(next.length - 50);
+      return next;
+    });
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -113,8 +127,32 @@ export default function CommandCenter() {
       ]);
       const statusData = await statusRes.json();
       const historyData = await historyRes.json();
+      
       setAlphaStatus(statusData);
       setHistory(historyData);
+
+      // Log canonical events
+      const marketEvent = createEvent(
+        'PRICE_TICK',
+        'MARKET',
+        { symbol: statusData.symbol, price: historyData[historyData.length - 1].close },
+        Date.now() - 100,
+        'BINANCE_ADAPTER'
+      );
+      addEvent(marketEvent);
+
+      if (statusData.signal !== 'NEUTRAL') {
+        const signalEvent = createEvent(
+          'ALPHA_SIGNAL',
+          'SIGNAL',
+          { signal: statusData.signal, confidence: statusData.confidence },
+          Date.now() - 50,
+          'INTELLIGENCE_ENGINE',
+          [marketEvent.id]
+        );
+        addEvent(signalEvent);
+      }
+
     } catch (error) {
       console.error("Failed to fetch data", error);
     } finally {
@@ -161,6 +199,29 @@ export default function CommandCenter() {
           <PulseItem label="Largest Flow" value="NVDA Options" change="$4.2B" trend="up" />
           <PulseItem label="DXY" value="103.45" change="+0.12%" trend="up" />
           <PulseItem label="BTC/USD" value={alphaStatus?.symbol === 'BTC-USD' ? "68,420" : "68,420"} change="+4.2%" trend="up" />
+        </div>
+
+        <div className="flex items-center gap-2 border-l border-white/5 pl-8 mr-4">
+          <button 
+            onClick={() => setActiveTab('visual')}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-2",
+              activeTab === 'visual' ? "bg-electric-accent text-primary-dark" : "text-white/40 hover:text-white"
+            )}
+          >
+            <Activity className="w-3 h-3" />
+            CHART
+          </button>
+          <button 
+            onClick={() => setActiveTab('kernel')}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-2",
+              activeTab === 'kernel' ? "bg-emerald-500 text-black border-transparent" : "text-white/40 hover:text-white"
+            )}
+          >
+            <Terminal className="w-3 h-3" />
+            KERNEL
+          </button>
         </div>
 
         <div className="flex items-center gap-4 pl-8 border-l border-white/5">
@@ -282,19 +343,32 @@ export default function CommandCenter() {
 
         {/* Market Price Action (Candlestick Chart) */}
         <div className="col-span-12 lg:col-span-4 row-span-3 glass-panel p-5 flex flex-col min-h-0">
-          <PanelHeader icon={<BarChart3 className="w-4 h-4" />} title="Market Price Action" subtitle="Live Candlestick Feed" />
+          <div className="flex items-center justify-between">
+            <PanelHeader 
+              icon={activeTab === 'visual' ? <BarChart3 className="w-4 h-4" /> : <Terminal className="w-4 h-4 text-emerald-500" />} 
+              title={activeTab === 'visual' ? "Market Price Action" : "Canonical Event Kernel"} 
+              subtitle={activeTab === 'visual' ? "Live Candlestick Feed" : "Replay System Logs"} 
+            />
+          </div>
+          
           <div className="flex-1 mt-4 relative">
-            {history.length > 0 ? (
-              <CandlestickChart data={history} />
+            {activeTab === 'visual' ? (
+              <>
+                {history.length > 0 ? (
+                  <CandlestickChart data={history} />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-electric-accent/20 border-t-electric-accent rounded-full animate-spin" />
+                  </div>
+                )}
+                <div className="absolute top-2 left-2 flex items-center gap-2 px-2 py-1 rounded bg-black/40 border border-white/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse" />
+                  <span className="text-[9px] font-bold text-white/60 uppercase">NVDA // 1M</span>
+                </div>
+              </>
             ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-electric-accent/20 border-t-electric-accent rounded-full animate-spin" />
-              </div>
+              <CausalityGraph events={events} />
             )}
-            <div className="absolute top-2 left-2 flex items-center gap-2 px-2 py-1 rounded bg-black/40 border border-white/5">
-              <div className="w-1.5 h-1.5 rounded-full bg-bullish animate-pulse" />
-              <span className="text-[9px] font-bold text-white/60 uppercase">NVDA // 1M</span>
-            </div>
           </div>
         </div>
 
