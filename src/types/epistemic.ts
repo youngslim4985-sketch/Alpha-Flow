@@ -18,6 +18,15 @@ export interface Annotation {
   timestamp: number;
 }
 
+export interface Regime {
+  id: string;
+  name: string;
+  prevalence: number;
+  mean_return: number;
+  sharpe_approx: number;
+  effect_size: number;
+}
+
 export interface DecisionSnapshot {
   id: string;
   timestamp: number;
@@ -25,6 +34,9 @@ export interface DecisionSnapshot {
   cache_state_hash: string;
   contributing_event_ids: string[];
   active_annotations: string[];
+  regime: Regime;
+  liquidity_depth: number;
+  order_pressure: number;
   system_state: {
     buyingPower: number;
     positionSize: number;
@@ -43,6 +55,7 @@ export interface DecisionEvent extends IntelligenceEvent {
     reasoning: string;
     snapshot: DecisionSnapshot;
     engine_version: string;
+    intent_id?: string;
   };
 }
 

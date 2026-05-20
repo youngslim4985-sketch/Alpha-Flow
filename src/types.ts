@@ -89,6 +89,15 @@ export type PortfolioSummary = {
   buyingPower: number;
 };
 
+export interface IntelligenceIntent {
+  readonly id: string;
+  readonly trigger_event_id: string;
+  readonly action: string;
+  readonly confidence: number;
+  readonly requires_approval: boolean;
+  readonly metadata?: Readonly<Record<string, any>>;
+}
+
 export interface EventClock {
   /** External system timestamp (e.g. exchange time) */
   source_time: number;
