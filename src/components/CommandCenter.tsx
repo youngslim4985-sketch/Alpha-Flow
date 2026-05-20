@@ -32,10 +32,21 @@ import {
   Cell
 } from 'recharts';
 import { IntelligenceEvent, ProductionEvent } from '../types';
+import { DecisionEvent } from '../types/epistemic';
 import { CausalityGraph } from './CausalityGraph';
 import { MigrationMonitor } from './MigrationMonitor';
+import { DecisionSnapshotView } from './DecisionSnapshotView';
 import { createEvent } from '../lib/intelligence';
 import { migrateAlphaFlow, migrateLedger } from '../migration/migrate';
+import { BoundedCache } from '../lib/cache';
+import { EpistemicEngine } from '../lib/epistemic-engine';
+
+const cache = new BoundedCache({
+  time_window_ms: 300000,
+  event_limit: 50,
+  asset_partitioning: true
+});
+const engine = new EpistemicEngine(cache);
 
 const CandlestickChart = ({ data }: { data: any[] }) => {
   return (
@@ -112,7 +123,8 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<IntelligenceEvent[]>([]);
   const [migratedEvents, setMigratedEvents] = useState<ProductionEvent[]>([]);
-  const [activeTab, setActiveTab] = useState<'visual' | 'kernel' | 'migration'>('visual');
+  const [lastDecision, setLastDecision] = useState<DecisionEvent | null>(null);
+  const [activeTab, setActiveTab] = useState<'visual' | 'kernel' | 'migration' | 'epistemic'>('visual');
 
   const simulateMigration = useCallback(async () => {
     // Simulate legacy Alpha-Flow events
@@ -166,6 +178,7 @@ export default function CommandCenter() {
         'BINANCE_ADAPTER'
       );
       addEvent(marketEvent);
+      cache.push(marketEvent, statusData.symbol);
 
       if (statusData.signal !== 'NEUTRAL') {
         const signalEvent = createEvent(
@@ -177,7 +190,13 @@ export default function CommandCenter() {
           [marketEvent.id]
         );
         addEvent(signalEvent);
+        cache.push(signalEvent, statusData.symbol);
         
+        // Run Epistemic Evaluation
+        const decision = await engine.evaluate(statusData.symbol, historyData[historyData.length - 1].close);
+        setLastDecision(decision);
+        addEvent(decision);
+
         // Trigger simulation of legacy system synchronization
         simulateMigration();
       }
@@ -260,6 +279,16 @@ export default function CommandCenter() {
           >
             <Database className="w-3 h-3" />
             MIGRATION
+          </button>
+          <button 
+            onClick={() => setActiveTab('epistemic')}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-2",
+              activeTab === 'epistemic' ? "bg-amber-500 text-black border-transparent" : "text-white/40 hover:text-white"
+            )}
+          >
+            <ShieldCheck className="w-3 h-3" />
+            EPISTEMIC
           </button>
         </div>
 
@@ -387,17 +416,20 @@ export default function CommandCenter() {
               icon={
                 activeTab === 'visual' ? <BarChart3 className="w-4 h-4" /> : 
                 activeTab === 'kernel' ? <Terminal className="w-4 h-4 text-emerald-500" /> :
-                <Database className="w-4 h-4 text-blue-500" />
+                activeTab === 'migration' ? <Database className="w-4 h-4 text-blue-500" /> :
+                <ShieldCheck className="w-4 h-4 text-amber-500" />
               } 
               title={
                 activeTab === 'visual' ? "Market Price Action" : 
                 activeTab === 'kernel' ? "Canonical Event Kernel" :
-                "Legacy Migration Engine"
+                activeTab === 'migration' ? "Legacy Migration Engine" :
+                "Epistemic Decision State"
               } 
               subtitle={
                 activeTab === 'visual' ? "Live Candlestick Feed" : 
                 activeTab === 'kernel' ? "Replay System Logs" :
-                "Alpha-Flow & Ledger Normalizer"
+                activeTab === 'migration' ? "Alpha-Flow & Ledger Normalizer" :
+                "Hot Path Snapshot & Reasoning"
               } 
             />
           </div>
@@ -423,6 +455,16 @@ export default function CommandCenter() {
             )}
             {activeTab === 'migration' && (
               <MigrationMonitor migratedEvents={migratedEvents} />
+            )}
+            {activeTab === 'epistemic' && (
+              lastDecision ? (
+                <DecisionSnapshotView decision={lastDecision} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-white/20">
+                  <ShieldCheck className="w-12 h-12 mb-4 opacity-20" />
+                  <p className="text-center px-8 text-xs">AWAITING HOT PATH TRIGGER...<br/>SYSTEM STABILIZING</p>
+                </div>
+              )
             )}
           </div>
         </div>
