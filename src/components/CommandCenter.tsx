@@ -36,6 +36,7 @@ import { DecisionEvent } from '../types/epistemic';
 import { CausalityGraph } from './CausalityGraph';
 import { MigrationMonitor } from './MigrationMonitor';
 import { DecisionSnapshotView } from './DecisionSnapshotView';
+import { StateEngineMonitor } from './StateEngineMonitor';
 import { createEvent } from '../lib/intelligence';
 import { migrateAlphaFlow, migrateLedger } from '../migration/migrate';
 import { BoundedCache } from '../lib/cache';
@@ -124,7 +125,7 @@ export default function CommandCenter() {
   const [events, setEvents] = useState<IntelligenceEvent[]>([]);
   const [migratedEvents, setMigratedEvents] = useState<ProductionEvent[]>([]);
   const [lastDecision, setLastDecision] = useState<DecisionEvent | null>(null);
-  const [activeTab, setActiveTab] = useState<'visual' | 'kernel' | 'migration' | 'epistemic'>('visual');
+  const [activeTab, setActiveTab] = useState<'visual' | 'kernel' | 'migration' | 'epistemic' | 'engine'>('visual');
 
   const simulateMigration = useCallback(async () => {
     // Simulate legacy Alpha-Flow events
@@ -290,6 +291,16 @@ export default function CommandCenter() {
             <ShieldCheck className="w-3 h-3" />
             EPISTEMIC
           </button>
+          <button 
+            onClick={() => setActiveTab('engine')}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-2",
+              activeTab === 'engine' ? "bg-amber-500 text-black border-transparent" : "text-white/40 hover:text-white"
+            )}
+          >
+            <Cpu className="w-3 h-3" />
+            ENGINE
+          </button>
         </div>
 
         <div className="flex items-center gap-4 pl-8 border-l border-white/5">
@@ -417,19 +428,22 @@ export default function CommandCenter() {
                 activeTab === 'visual' ? <BarChart3 className="w-4 h-4" /> : 
                 activeTab === 'kernel' ? <Terminal className="w-4 h-4 text-emerald-500" /> :
                 activeTab === 'migration' ? <Database className="w-4 h-4 text-blue-500" /> :
-                <ShieldCheck className="w-4 h-4 text-amber-500" />
+                activeTab === 'epistemic' ? <ShieldCheck className="w-4 h-4 text-amber-500" /> :
+                <Cpu className="w-4 h-4 text-emerald-500" />
               } 
               title={
                 activeTab === 'visual' ? "Market Price Action" : 
                 activeTab === 'kernel' ? "Canonical Event Kernel" :
                 activeTab === 'migration' ? "Legacy Migration Engine" :
-                "Epistemic Decision State"
+                activeTab === 'epistemic' ? "Epistemic Decision State" :
+                "Deterministic State Core"
               } 
               subtitle={
                 activeTab === 'visual' ? "Live Candlestick Feed" : 
                 activeTab === 'kernel' ? "Replay System Logs" :
                 activeTab === 'migration' ? "Alpha-Flow & Ledger Normalizer" :
-                "Hot Path Snapshot & Reasoning"
+                activeTab === 'epistemic' ? "Hot Path Snapshot & Reasoning" :
+                "Formal Transition Logic & Veto Harness"
               } 
             />
           </div>
@@ -465,6 +479,9 @@ export default function CommandCenter() {
                   <p className="text-center px-8 text-xs">AWAITING HOT PATH TRIGGER...<br/>SYSTEM STABILIZING</p>
                 </div>
               )
+            )}
+            {activeTab === 'engine' && (
+              <StateEngineMonitor />
             )}
           </div>
         </div>
