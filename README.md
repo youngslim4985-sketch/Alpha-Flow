@@ -1,8 +1,4 @@
-**Here's a professional, well-structured README.md** for your **Alpha-Flow** repository:
 
----
-
-```markdown
 # Alpha-Flow
 
 **Alpha Terminal Intelligence Engine** — A quantitative trading microservice for regime detection, order-book analysis, and alpha signal generation.
