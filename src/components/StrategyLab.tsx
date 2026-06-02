@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StrategyRegimeMatrix } from './StrategyRegimeMatrix';
 import { 
   FlaskConical, 
   Play, 
@@ -15,11 +16,11 @@ import {
   BookOpen,
   Calendar,
   DollarSign,
-  Sparkles
+  Sparkles,
+  LayoutGrid
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
 import { 
   LineChart, 
   Line, 
@@ -86,7 +87,7 @@ export default function StrategyLab() {
   ]);
   const [isBacktesting, setIsBacktesting] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [activeView, setActiveView] = useState<'analytics' | 'journal'>('analytics');
+  const [activeView, setActiveView] = useState<'analytics' | 'journal' | 'matrix'>('analytics');
   const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([
@@ -118,12 +119,6 @@ export default function StrategyLab() {
     setAiAnalysis(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error('API Key missing');
-
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-      
       const journalText = journalEntries.map(e => 
         `Date: ${e.date}, P&L: ${e.pnl}, Notes: ${e.notes}`
       ).join('\n---\n');
@@ -133,17 +128,20 @@ export default function StrategyLab() {
       Journal Entries:
       ${journalText}`;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are Alpha, a professional trading performance psychologist. Your goal is to find 'leaks' in a trader's execution based on their journal notes.",
-          temperature: 0.7,
-        }
+      const response = await fetch("/api/gemini/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          prompt,
+          systemInstruction: "You are Alpha, a professional trading performance psychologist. Your goal is to find 'leaks' in a trader's execution based on their journal notes."
+        }),
       });
 
-      setAiAnalysis(response.text || "No patterns identified yet. Keep logging more trades.");
-    } catch (error) {
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      setAiAnalysis(data.text || "No patterns identified yet. Keep logging more trades.");
+    } catch (error: any) {
       console.error('Journal Analysis Error:', error);
       setAiAnalysis("Failed to connect to Alpha Intelligence. Please check your configuration.");
     } finally {
@@ -381,10 +379,29 @@ export default function StrategyLab() {
             >
               Trade Journal
             </button>
+            <button 
+              onClick={() => setActiveView('matrix')}
+              className={cn(
+                "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                activeView === 'matrix' ? "bg-gold text-black" : "text-white/40 hover:text-white"
+              )}
+            >
+              Empire Matrix
+            </button>
           </div>
 
           <AnimatePresence mode="wait">
-            {activeView === 'analytics' ? (
+            {activeView === 'matrix' ? (
+              <motion.div 
+                key="matrix"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex-1 overflow-hidden"
+              >
+                <StrategyRegimeMatrix />
+              </motion.div>
+            ) : activeView === 'analytics' ? (
               !showResults ? (
                 <motion.div 
                   key="empty"

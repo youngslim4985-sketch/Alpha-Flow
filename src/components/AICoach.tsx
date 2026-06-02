@@ -15,7 +15,6 @@ import {
 import { cn } from '@/src/lib/utils';
 import { CoachMode, Message } from '@/src/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
 
 const modeConfig = {
   Strategist: {
@@ -75,36 +74,28 @@ export default function AICoach() {
     setIsLoading(true);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('GEMINI_API_KEY is not configured');
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-      
       const systemInstruction = `You are a world-class AI Trade Coach named Alpha. 
       Current Mode: ${mode}. 
       ${modeConfig[mode].description}
       Keep responses concise, professional, and focused on market intelligence, order flow, and trading psychology. 
       Use trading terminology like VWAP, Delta, Sweeps, and Liquidity Walls where appropriate.`;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: [
-          { role: 'user', parts: [{ text: input }] }
-        ],
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-          topP: 0.95,
-        }
+      const response = await fetch("/api/gemini/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          prompt: input,
+          systemInstruction
+        }),
       });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
 
       const aiMsg: Message = {
         id: crypto.randomUUID(),
         role: 'ai',
-        text: response.text || "I'm having trouble processing that market data right now. Let's try again.",
+        text: data.text || "I'm having trouble processing that market data right now. Let's try again.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMsg]);

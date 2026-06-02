@@ -13,6 +13,8 @@
   --color-bearish: #E74C3C;
   --color-warning: #F39C12;
   --color-institutional: #F1C40F;
+  --color-gold: #D4AF37;
+  --color-obsidian: #05080A;
 }
 
 @layer base {

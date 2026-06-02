@@ -2,9 +2,19 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const genAI = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 async function startServer() {
   const app = express();
@@ -13,6 +23,29 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.use(express.json());
+
+  app.post("/api/gemini/analyze", async (req, res) => {
+    const { prompt, systemInstruction } = req.body;
+    
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+    }
+
+    try {
+      const response = await genAI.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: systemInstruction ? { systemInstruction } : undefined
+      });
+      
+      res.json({ text: response.text });
+    } catch (error: any) {
+      console.error("Gemini API Error:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze with Gemini" });
+    }
   });
 
   // Mock Market Data Endpoint

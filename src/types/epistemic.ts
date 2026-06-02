@@ -44,6 +44,21 @@ export interface DecisionSnapshot {
   };
 }
 
+export interface RegimePerformance {
+  strategy_id: string;
+  regime_id: string;
+  return_pct: number;
+  win_rate: number;
+  trade_count: number;
+  rating: number; // 1-5 stars
+}
+
+export interface Strategy {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export type DecisionType = 'EXECUTE' | 'HOLD' | 'AVOID' | 'LIQUIDATE';
 
 export interface DecisionEvent extends IntelligenceEvent {
