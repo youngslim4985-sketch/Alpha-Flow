@@ -13,7 +13,8 @@ import {
   Swords,
   Monitor,
   Milestone,
-  Network
+  Network,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -31,7 +32,7 @@ const navItems: NavItem[] = [
   { id: 'markets', label: 'Markets', icon: BarChart3 },
   { id: 'orderflow', label: 'Alpha Engine', icon: Zap },
   { id: 'radar', label: 'Smart Money', icon: Radar },
-  { id: 'signals', label: 'AI Coach', icon: Radio },
+  { id: 'signals', label: 'AI Mentor', icon: Sparkles },
   { id: 'replay', label: 'Market Replay', icon: RotateCcw },
   { id: 'battles', label: 'Trade Battles', icon: Swords },
   { id: 'lab', label: 'Strategy Lab', icon: FlaskConical },
